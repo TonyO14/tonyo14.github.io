@@ -36,6 +36,20 @@ This is my project description.
 
 Standard YouTube watch, share (`youtu.be`), Shorts, live, and embed links are supported. Omit the line entirely if there is no video. The video must permit embedding to play on the site.
 
+To add captions, include either or both optional caption lines after the date and before the blank line. They can be used with or without the YouTube line:
+
+```text
+Title: My First Project
+Date: 2026-11
+Photo1 caption: The finished project
+Photo2 caption: A look inside
+YouTube: https://www.youtube.com/watch?v=dQw4w9WgXcQ
+
+This is my project description.
+```
+
+Each caption appears beneath its corresponding photo. Omit a caption line if you don't want one.
+
 Google Docs are exported as plain text, so formatting such as bold text and links is not preserved. Make sure the document itself is viewable by anyone with the link and that viewers are allowed to download it.
 
 ## API and GitHub

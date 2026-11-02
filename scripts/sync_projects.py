@@ -99,25 +99,39 @@ def parse_details(content):
         raise ValueError("Project details must begin with 'Title: ...', 'Date: YYYY-MM', a blank line, and a description")
     title = lines[0][7:].strip()
     date = lines[1][6:].strip()
-    description_start = 3
-    video = None
-    if lines[2].startswith("YouTube:"):
-        video = youtube_id(lines[2][len("YouTube:"):].strip())
-        description_start = 4
-    if not title or len(lines) < description_start + 1 or lines[description_start - 1].strip():
+    fields = {}
+    line_number = 2
+    while line_number < len(lines) and lines[line_number].strip():
+        name, separator, value = lines[line_number].partition(":")
+        if not separator or name not in ("YouTube", "Photo1 caption", "Photo2 caption") or name in fields:
+            raise ValueError("Optional fields must be YouTube, Photo1 caption, or Photo2 caption, without duplicates")
+        fields[name] = value.strip()
+        if not fields[name]:
+            raise ValueError(f"{name} cannot be empty; omit the line instead")
+        line_number += 1
+    if not title or line_number >= len(lines):
         raise ValueError("A title and a blank line before the description are required")
     if not re.fullmatch(r"\d{4}-\d{2}", date):
         raise ValueError("Date must use YYYY-MM")
     datetime.date.fromisoformat(date + "-01")
-    description = "\n".join(lines[description_start:]).strip()
+    description = "\n".join(lines[line_number + 1:]).strip()
     if not description:
         raise ValueError("Description cannot be empty")
-    return title, date, description, video
+    video = youtube_id(fields["YouTube"]) if "YouTube" in fields else None
+    captions = [fields.get("Photo1 caption", ""), fields.get("Photo2 caption", "")]
+    return title, date, description, video, captions
 
 
-def page(title, date, description, images, video=None):
+def page(title, date, description, images, video=None, captions=None):
     escape = html.escape
-    photos = "\n".join(f'            <img src="{escape(name, quote=True)}">' for name in images)
+    captions = captions or [""] * len(images)
+    photos = "\n".join(
+        '            <figure class="project-photo">\n'
+        f'                <img src="{escape(name, quote=True)}">\n'
+        + (f'                <figcaption>{escape(caption)}</figcaption>\n' if caption else '')
+        + '            </figure>'
+        for name, caption in zip(images, captions)
+    )
     embed = ""
     if video:
         embed = f'''\n        <div class="project-video">
@@ -167,7 +181,7 @@ def main():
     for folder in folders:
         try:
             items = children(folder["id"], key)
-            title, date, description, video = parse_details(download_details(items, key))
+            title, date, description, video, captions = parse_details(download_details(items, key))
             identifier = folder["id"]
             if not re.fullmatch(r"[A-Za-z0-9_-]+", identifier):
                 raise ValueError("invalid folder ID")
@@ -182,7 +196,7 @@ def main():
                 outputs[filename] = download(image["id"], key)
                 image_names.append(filename)
             filename = identifier + ".html"
-            outputs[filename] = page(title, date, description, image_names, video).encode("utf-8")
+            outputs[filename] = page(title, date, description, image_names, video, captions).encode("utf-8")
             projects.append((date, title, filename))
         except Exception as error:
             raise ValueError(f"Project folder {folder['name']!r}: {error}") from error
