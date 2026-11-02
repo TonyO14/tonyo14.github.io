@@ -8,6 +8,7 @@ from pathlib import Path
 import re
 import sys
 from urllib.parse import urlencode
+from urllib.error import HTTPError
 from urllib.request import urlopen
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -18,8 +19,18 @@ END = "<!-- PROJECT LIST END -->"
 
 
 def request(url, params):
-    with urlopen(url + "?" + urlencode(params), timeout=60) as response:
-        return response.read()
+    try:
+        with urlopen(url + "?" + urlencode(params), timeout=60) as response:
+            return response.read()
+    except HTTPError as error:
+        operation = "listing a folder" if url == API else "downloading a file"
+        try:
+            body = json.loads(error.read())
+            details = body.get("error", {}).get("message", "No details provided")
+        except (ValueError, AttributeError):
+            details = "No details provided"
+        # Do not print the request URL: it contains the API key.
+        raise RuntimeError(f"Google Drive error while {operation} (HTTP {error.code}): {details}") from error
 
 
 def children(folder_id, key):
@@ -45,10 +56,25 @@ def download(file_id, key):
     return request(API + "/" + file_id, {"key": key, "alt": "media"})
 
 
+def download_details(items, key):
+    matches = [f for f in items if
+               (f["name"].lower() == "details.txt" and f["mimeType"] == "text/plain") or
+               (f["name"].lower() in ("details", "details.txt") and
+                f["mimeType"] == "application/vnd.google-apps.document")]
+    if len(matches) != 1:
+        raise ValueError("expected exactly one details.txt text file or Google Doc named details")
+    item = matches[0]
+    if item["mimeType"] == "application/vnd.google-apps.document":
+        if not re.fullmatch(r"[A-Za-z0-9_-]+", item["id"]):
+            raise ValueError("invalid Google Doc ID")
+        return request("https://docs.google.com/document/d/" + item["id"] + "/export", {"format": "txt"})
+    return download(item["id"], key)
+
+
 def parse_details(content):
     lines = content.decode("utf-8-sig").splitlines()
     if len(lines) < 4 or not lines[0].startswith("Title: ") or not lines[1].startswith("Date: "):
-        raise ValueError("details.txt must begin with 'Title: ...', 'Date: YYYY-MM', a blank line, and a description")
+        raise ValueError("Project details must begin with 'Title: ...', 'Date: YYYY-MM', a blank line, and a description")
     title = lines[0][7:].strip()
     date = lines[1][6:].strip()
     if not title or lines[2].strip():
@@ -107,13 +133,7 @@ def main():
     for folder in folders:
         try:
             items = children(folder["id"], key)
-            def find(name):
-                matches = [f for f in items if f["name"].lower() == name]
-                if len(matches) != 1:
-                    raise ValueError(f"expected exactly one {name}")
-                return matches[0]
-
-            title, date, description = parse_details(download(find("details.txt")["id"], key))
+            title, date, description = parse_details(download_details(items, key))
             identifier = folder["id"]
             if not re.fullmatch(r"[A-Za-z0-9_-]+", identifier):
                 raise ValueError("invalid folder ID")

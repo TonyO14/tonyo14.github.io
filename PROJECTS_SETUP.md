@@ -6,12 +6,12 @@ The workflow runs on pushes to `main` and can also be run manually from GitHub's
 
 1. Create a folder for your projects. Under Share, set General access to **Anyone with the link**, Viewer. Everything in this folder will be published, so don't put private information in it.
 2. Copy the folder ID from its URL: `https://drive.google.com/drive/folders/FOLDER_ID`.
-3. Create a separate subfolder inside it for each project. In each project folder, upload exactly these three files (ordinary uploaded files, not Google Docs):
-   - `details.txt` (UTF-8 encoded)
+3. Create a separate subfolder inside it for each project. In each project folder, add exactly these three files:
+   - A Google Doc named `details`, or an uploaded `details.txt` text file (UTF-8 encoded). Use only one per project.
    - `photo1.jpg` or `photo1.png`
    - `photo2.jpg` or `photo2.png`
 
-Example `details.txt`:
+Example content for the `details` Google Doc or `details.txt`:
 
 ```text
 Title: My First Project
@@ -23,6 +23,8 @@ It can also contain multiple paragraphs.
 ```
 
 The date must be in `YYYY-MM` format. Projects are listed newest first. Folder names don't appear on the site. Sharing permissions need to allow public viewing of each project folder and its files; check them if the sync cannot access them.
+
+Google Docs are exported as plain text, so formatting such as bold text and links is not preserved. Make sure the document itself is viewable by anyone with the link and that viewers are allowed to download it.
 
 ## API and GitHub
 
