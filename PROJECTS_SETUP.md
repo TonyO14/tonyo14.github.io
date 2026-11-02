@@ -15,14 +15,14 @@ Example content for the `details` Google Doc or `details.txt`:
 
 ```text
 Title: My First Project
-Date: 2026-11
+Date: November 2026
 
 This is my project description. It can be as long as I like.
 
 It can also contain multiple paragraphs.
 ```
 
-The date must be in `YYYY-MM` format. Projects are listed newest first. Folder names don't appear on the site. Sharing permissions need to allow public viewing of each project folder and its files; check them if the sync cannot access them.
+Dates can use `Month YYYY` (for example, `March 2022`), `YYYY-MM`, or `YYYY/MM`. The date appears as written, and projects are listed newest first. Folder names don't appear on the site. Sharing permissions need to allow public viewing of each project folder and its files; check them if the sync cannot access them.
 
 To embed a YouTube video, add an optional `YouTube:` line immediately after the date and before the blank line:
 

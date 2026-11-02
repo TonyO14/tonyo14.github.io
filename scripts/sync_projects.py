@@ -93,10 +93,21 @@ def youtube_id(url):
     return video
 
 
+def parse_date(value):
+    if re.fullmatch(r"\d{4}[-/]\d{2}", value):
+        return datetime.date.fromisoformat(value.replace("/", "-") + "-01")
+    if re.fullmatch(r"[A-Za-z]+ \d{4}", value):
+        try:
+            return datetime.datetime.strptime(value, "%B %Y").date()
+        except ValueError:
+            pass
+    raise ValueError("Date must use Month YYYY, YYYY-MM, or YYYY/MM")
+
+
 def parse_details(content):
     lines = content.decode("utf-8-sig").splitlines()
     if len(lines) < 4 or not lines[0].startswith("Title: ") or not lines[1].startswith("Date: "):
-        raise ValueError("Project details must begin with 'Title: ...', 'Date: YYYY-MM', a blank line, and a description")
+        raise ValueError("Project details must begin with a title, date, blank line, and description")
     title = lines[0][7:].strip()
     date = lines[1][6:].strip()
     fields = {}
@@ -111,9 +122,7 @@ def parse_details(content):
         line_number += 1
     if not title or line_number >= len(lines):
         raise ValueError("A title and a blank line before the description are required")
-    if not re.fullmatch(r"\d{4}-\d{2}", date):
-        raise ValueError("Date must use YYYY-MM")
-    datetime.date.fromisoformat(date + "-01")
+    parse_date(date)
     description = "\n".join(lines[line_number + 1:]).strip()
     if not description:
         raise ValueError("Description cannot be empty")
@@ -201,7 +210,7 @@ def main():
         except Exception as error:
             raise ValueError(f"Project folder {folder['name']!r}: {error}") from error
 
-    projects.sort(key=lambda project: (project[0], project[1]), reverse=True)
+    projects.sort(key=lambda project: (parse_date(project[0]), project[1]), reverse=True)
     bars = [f'            <a class="project-bar" href="generated-projects/{html.escape(filename, quote=True)}">{html.escape(title)} - {html.escape(date)}</a>' for date, title, filename in projects]
     listing = '\n        <div class="project-list">\n' + '\n'.join(bars) + '\n        </div>\n        ' if bars else '\n        <p>No projects yet.</p>\n        '
     index_path = ROOT / "projects.html"
