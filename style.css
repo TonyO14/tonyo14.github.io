@@ -4,13 +4,14 @@ body {
     margin: 0;
     text-align: center;
     font-family: "Inter", Arial, sans-serif;
+    line-height: 1.6;
 }
 
 .top-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    max-width: 1000px;
+    max-width: 1200px;
     margin: 0 auto;
     padding: 20px 24px;
 }
@@ -29,11 +30,38 @@ body {
     gap: 24px;
 }
 
+.personal-content {
+    max-width: 1000px;
+    margin: 80px auto 0;
+    padding: 0 24px;
+}
+
+.youtube-intro {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    text-align: left;
+}
+
+.youtube-intro p {
+    flex: 1;
+}
+
+.youtube-image {
+    width: 500px;
+    max-width: 100%;
+    height: auto;
+}
+
+.youtube-link {
+    font-size: 2em;
+}
+
 .introduction {
     display: flex;
     align-items: center;
     gap: 60px;
-    max-width: 1000px;
+    max-width: 1200px;
     margin: 80px auto;
     padding: 0 24px;
     text-align: left;
@@ -44,13 +72,30 @@ body {
     line-height: 1.6;
 }
 
+.profile {
+    width: 700px;
+    max-width: 100%;
+    min-width: 0;
+    margin: 0;
+    text-align: center;
+}
+
+.profile figcaption {
+    margin-top: 8px;
+    font-size: 0.9em;
+}
+
 .profile-image {
-    width: 400px;
+    width: 700px;
     max-width: 100%;
     height: auto;
 }
 
 @media (max-width: 700px) {
+    .youtube-intro {
+        flex-direction: column;
+    }
+
     .introduction {
         flex-direction: column;
         gap: 24px;
