@@ -139,6 +139,8 @@ def page(title, date, description, images, video=None):
             <a href="../projects.html">Projects</a>
             <a href="../about.html">About</a>
             <a href="../youtube.html">YouTube</a>
+            <a href="https://www.linkedin.com/in/anthony-ozerov-1b545232b/">LinkedIn</a>
+            <a href="../images/resume.pdf">Resume</a>
         </nav>
     </header>
     <main class="personal-content projects-content">

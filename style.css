@@ -27,6 +27,8 @@ body {
 
 .top-bar nav {
     display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
     gap: 24px;
 }
 
