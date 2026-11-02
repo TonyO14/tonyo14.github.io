@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 import re
 import sys
-from urllib.parse import urlencode
+from urllib.parse import parse_qs, urlencode, urlparse
 from urllib.error import HTTPError
 from urllib.request import urlopen
 
@@ -71,26 +71,58 @@ def download_details(items, key):
     return download(item["id"], key)
 
 
+def youtube_id(url):
+    parsed = urlparse(url)
+    host = (parsed.hostname or "").lower()
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError("YouTube must be a valid YouTube video URL")
+    if host in ("youtube.com", "www.youtube.com", "m.youtube.com"):
+        parts = parsed.path.strip("/").split("/")
+        if parsed.path == "/watch":
+            video = parse_qs(parsed.query).get("v", [""])[0]
+        elif len(parts) == 2 and parts[0] in ("shorts", "embed", "live"):
+            video = parts[1]
+        else:
+            video = ""
+    elif host in ("youtu.be", "www.youtu.be"):
+        video = parsed.path.strip("/")
+    else:
+        video = ""
+    if not re.fullmatch(r"[A-Za-z0-9_-]{11}", video):
+        raise ValueError("YouTube must be a valid YouTube video URL")
+    return video
+
+
 def parse_details(content):
     lines = content.decode("utf-8-sig").splitlines()
     if len(lines) < 4 or not lines[0].startswith("Title: ") or not lines[1].startswith("Date: "):
         raise ValueError("Project details must begin with 'Title: ...', 'Date: YYYY-MM', a blank line, and a description")
     title = lines[0][7:].strip()
     date = lines[1][6:].strip()
-    if not title or lines[2].strip():
+    description_start = 3
+    video = None
+    if lines[2].startswith("YouTube:"):
+        video = youtube_id(lines[2][len("YouTube:"):].strip())
+        description_start = 4
+    if not title or len(lines) < description_start + 1 or lines[description_start - 1].strip():
         raise ValueError("A title and a blank line before the description are required")
     if not re.fullmatch(r"\d{4}-\d{2}", date):
         raise ValueError("Date must use YYYY-MM")
     datetime.date.fromisoformat(date + "-01")
-    description = "\n".join(lines[3:]).strip()
+    description = "\n".join(lines[description_start:]).strip()
     if not description:
         raise ValueError("Description cannot be empty")
-    return title, date, description
+    return title, date, description, video
 
 
-def page(title, date, description, images):
+def page(title, date, description, images, video=None):
     escape = html.escape
     photos = "\n".join(f'            <img src="{escape(name, quote=True)}">' for name in images)
+    embed = ""
+    if video:
+        embed = f'''\n        <div class="project-video">
+            <iframe src="https://www.youtube-nocookie.com/embed/{escape(video, quote=True)}" title="YouTube video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy"></iframe>
+        </div>'''
     return f'''<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -115,7 +147,7 @@ def page(title, date, description, images):
         <p class="project-description">{escape(description)}</p>
         <div class="project-photos">
 {photos}
-        </div>
+        </div>{embed}
     </main>
 </body>
 </html>
@@ -133,7 +165,7 @@ def main():
     for folder in folders:
         try:
             items = children(folder["id"], key)
-            title, date, description = parse_details(download_details(items, key))
+            title, date, description, video = parse_details(download_details(items, key))
             identifier = folder["id"]
             if not re.fullmatch(r"[A-Za-z0-9_-]+", identifier):
                 raise ValueError("invalid folder ID")
@@ -148,7 +180,7 @@ def main():
                 outputs[filename] = download(image["id"], key)
                 image_names.append(filename)
             filename = identifier + ".html"
-            outputs[filename] = page(title, date, description, image_names).encode("utf-8")
+            outputs[filename] = page(title, date, description, image_names, video).encode("utf-8")
             projects.append((date, title, filename))
         except Exception as error:
             raise ValueError(f"Project folder {folder['name']!r}: {error}") from error

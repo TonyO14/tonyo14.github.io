@@ -24,6 +24,18 @@ It can also contain multiple paragraphs.
 
 The date must be in `YYYY-MM` format. Projects are listed newest first. Folder names don't appear on the site. Sharing permissions need to allow public viewing of each project folder and its files; check them if the sync cannot access them.
 
+To embed a YouTube video, add an optional `YouTube:` line immediately after the date and before the blank line:
+
+```text
+Title: My First Project
+Date: 2026-11
+YouTube: https://www.youtube.com/watch?v=dQw4w9WgXcQ
+
+This is my project description.
+```
+
+Standard YouTube watch, share (`youtu.be`), Shorts, live, and embed links are supported. Omit the line entirely if there is no video. The video must permit embedding to play on the site.
+
 Google Docs are exported as plain text, so formatting such as bold text and links is not preserved. Make sure the document itself is viewable by anyone with the link and that viewers are allowed to download it.
 
 ## API and GitHub

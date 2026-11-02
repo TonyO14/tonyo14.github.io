@@ -122,6 +122,18 @@ body {
     object-fit: contain;
 }
 
+.project-video {
+    max-width: 750px;
+    margin: 32px auto 0;
+}
+
+.project-video iframe {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border: 0;
+}
+
 .introduction {
     display: flex;
     align-items: center;
