@@ -118,14 +118,19 @@ def parse_details(content):
     title = lines[0][7:].strip()
     date = lines[1][6:].strip()
     fields = {}
+    videos = []
     line_number = 2
     while line_number < len(lines) and lines[line_number].strip():
         name, separator, value = lines[line_number].partition(":")
-        if not separator or name not in ("YouTube", "Photo1 caption", "Photo2 caption") or name in fields:
-            raise ValueError("Optional fields must be YouTube, Photo1 caption, or Photo2 caption, without duplicates")
-        fields[name] = value.strip()
-        if not fields[name]:
+        if not separator or name not in ("YouTube", "Photo1 caption", "Photo2 caption") or (name != "YouTube" and name in fields):
+            raise ValueError("Optional fields must be YouTube, Photo1 caption, or Photo2 caption; captions cannot be repeated")
+        value = value.strip()
+        if not value:
             raise ValueError(f"{name} cannot be empty; omit the line instead")
+        if name == "YouTube":
+            videos.append(youtube_id(value))
+        else:
+            fields[name] = value
         line_number += 1
     if not title or line_number >= len(lines):
         raise ValueError("A title and a blank line before the description are required")
@@ -133,12 +138,11 @@ def parse_details(content):
     description = "\n".join(lines[line_number + 1:]).strip()
     if not description:
         raise ValueError("Description cannot be empty")
-    video = youtube_id(fields["YouTube"]) if "YouTube" in fields else None
     captions = [fields.get("Photo1 caption", ""), fields.get("Photo2 caption", "")]
-    return title, date, description, video, captions
+    return title, date, description, videos, captions
 
 
-def page(title, date, description, images, video=None, captions=None):
+def page(title, date, description, images, videos=None, captions=None):
     escape = html.escape
     captions = captions or [""] * len(images)
     photos = "\n".join(
@@ -148,11 +152,12 @@ def page(title, date, description, images, video=None, captions=None):
         + '            </figure>'
         for name, caption in zip(images, captions)
     )
-    embed = ""
-    if video:
-        embed = f'''\n        <div class="project-video">
-            <iframe src="https://www.youtube-nocookie.com/embed/{escape(video, quote=True)}" title="YouTube video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy"></iframe>
+    embed = "".join(
+        f'''\n        <div class="project-video">
+            <iframe src="https://www.youtube-nocookie.com/embed/{escape(video, quote=True)}" title="YouTube video {number}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy"></iframe>
         </div>'''
+        for number, video in enumerate(videos or [], 1)
+    )
     return f'''<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -197,7 +202,7 @@ def main():
     for folder in folders:
         try:
             items = children(folder["id"], key)
-            title, date, description, video, captions = parse_details(download_details(items, key))
+            title, date, description, videos, captions = parse_details(download_details(items, key))
             identifier = folder["id"]
             if not re.fullmatch(r"[A-Za-z0-9_-]+", identifier):
                 raise ValueError("invalid folder ID")
@@ -212,7 +217,7 @@ def main():
                 outputs[filename] = download(image["id"], key)
                 image_names.append(filename)
             filename = identifier + ".html"
-            outputs[filename] = page(title, date, description, image_names, video, captions).encode("utf-8")
+            outputs[filename] = page(title, date, description, image_names, videos, captions).encode("utf-8")
             projects.append((date, title, filename))
         except Exception as error:
             raise ValueError(f"Project folder {folder['name']!r}: {error}") from error
