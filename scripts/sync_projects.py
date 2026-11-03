@@ -94,6 +94,8 @@ def youtube_id(url):
 
 
 def parse_date(value):
+    if re.fullmatch(r"\d{4}", value):
+        return datetime.date(int(value), 1, 1)
     if re.fullmatch(r"\d{4}-\d{4}", value):
         start, end = map(int, value.split("-"))
         if 1 <= start <= end:
@@ -106,7 +108,7 @@ def parse_date(value):
             return datetime.datetime.strptime(value, "%B %Y").date()
         except ValueError:
             pass
-    raise ValueError("Date must use Month YYYY, YYYY-MM, YYYY/MM, or YYYY-YYYY")
+    raise ValueError("Date must use YYYY, Month YYYY, YYYY-MM, YYYY/MM, or YYYY-YYYY")
 
 
 def parse_details(content):
