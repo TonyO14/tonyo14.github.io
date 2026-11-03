@@ -1,6 +1,8 @@
 import unittest
+from unittest.mock import patch
 
-from sync_projects import page, parse_details
+import sync_projects
+from sync_projects import page, parse_details, project_photos
 
 
 class ProjectVideoTests(unittest.TestCase):
@@ -26,6 +28,29 @@ class ProjectVideoTests(unittest.TestCase):
         self.assertLess(result.index(videos[0]), result.index(videos[1]))
         self.assertEqual(result.count("<iframe "), 2)
         self.assertIn("First photo", result)
+
+    def test_many_photos_sorted_and_captioned(self):
+        items = [{"name": f"photo{n}.jpg"} for n in (10, 2, 1, 9, 8, 7, 6, 5, 4, 3)]
+        photos = project_photos(items)
+        self.assertEqual([p["name"] for p in photos], [f"photo{n}.jpg" for n in range(1, 11)])
+        title, date, description, videos, captions = parse_details(self.details("Photo10 caption: Last photo\n"))
+        result = page(title, date, description, [p["name"] for p in photos], videos, captions)
+        self.assertEqual(result.count('<figure class="project-photo">'), 10)
+        self.assertIn("Last photo", result)
+        self.assertEqual(project_photos([]), [])
+
+    def test_photo_gaps_and_duplicate_numbers_rejected(self):
+        for names in (["photo2.jpg"], ["photo1.jpg", "photo3.png"], ["photo1.jpg", "PHOTO1.PNG"]):
+            with self.subTest(names=names), self.assertRaises(ValueError):
+                project_photos([{"name": name} for name in names])
+
+    def test_caption_without_photo_fails_sync(self):
+        folder = {"name": "Example", "id": "folder", "mimeType": "application/vnd.google-apps.folder"}
+        with patch.dict("os.environ", {"GOOGLE_DRIVE_API_KEY": "key", "GOOGLE_DRIVE_FOLDER_ID": "root"}), \
+             patch.object(sync_projects, "children", side_effect=[[folder], []]), \
+             patch.object(sync_projects, "download_details", return_value=self.details("Photo1 caption: Missing\n")):
+            with self.assertRaisesRegex(ValueError, "caption.*existing photo"):
+                sync_projects.main()
 
     def test_invalid_or_empty_video_and_duplicate_caption_rejected(self):
         for fields in (

@@ -122,8 +122,8 @@ def parse_details(content):
     line_number = 2
     while line_number < len(lines) and lines[line_number].strip():
         name, separator, value = lines[line_number].partition(":")
-        if not separator or name not in ("YouTube", "Photo1 caption", "Photo2 caption") or (name != "YouTube" and name in fields):
-            raise ValueError("Optional fields must be YouTube, Photo1 caption, or Photo2 caption; captions cannot be repeated")
+        if not separator or (name != "YouTube" and not re.fullmatch(r"Photo[1-9][0-9]* caption", name)) or (name != "YouTube" and name in fields):
+            raise ValueError("Optional fields must be YouTube or PhotoN caption; captions cannot be repeated")
         value = value.strip()
         if not value:
             raise ValueError(f"{name} cannot be empty; omit the line instead")
@@ -138,19 +138,34 @@ def parse_details(content):
     description = "\n".join(lines[line_number + 1:]).strip()
     if not description:
         raise ValueError("Description cannot be empty")
-    captions = [fields.get("Photo1 caption", ""), fields.get("Photo2 caption", "")]
+    captions = {int(name[5:-8]): value for name, value in fields.items()}
     return title, date, description, videos, captions
+
+
+def project_photos(items):
+    photos = {}
+    for item in items:
+        match = re.fullmatch(r"photo([1-9][0-9]*)\.(jpg|png)", item["name"], re.IGNORECASE)
+        if match:
+            number = int(match.group(1))
+            if number in photos:
+                raise ValueError(f"expected only one photo{number}.jpg or photo{number}.png")
+            photos[number] = item
+    numbers = sorted(photos)
+    if numbers != list(range(1, len(numbers) + 1)):
+        raise ValueError("photos must be numbered consecutively starting with photo1")
+    return [photos[number] for number in numbers]
 
 
 def page(title, date, description, images, videos=None, captions=None):
     escape = html.escape
-    captions = captions or [""] * len(images)
+    captions = captions or {}
     photos = "\n".join(
         '            <figure class="project-photo">\n'
         f'                <img src="{escape(name, quote=True)}">\n'
-        + (f'                <figcaption>{escape(caption)}</figcaption>\n' if caption else '')
+        + (f'                <figcaption>{escape(captions[number])}</figcaption>\n' if number in captions else '')
         + '            </figure>'
-        for name, caption in zip(images, captions)
+        for number, name in enumerate(images, 1)
     )
     embed = "".join(
         f'''\n        <div class="project-video">
@@ -206,12 +221,11 @@ def main():
             identifier = folder["id"]
             if not re.fullmatch(r"[A-Za-z0-9_-]+", identifier):
                 raise ValueError("invalid folder ID")
+            photos = project_photos(items)
+            if any(number > len(photos) for number in captions):
+                raise ValueError("photo captions must refer to an existing photo")
             image_names = []
-            for number in (1, 2):
-                candidates = [f for f in items if f["name"].lower() in (f"photo{number}.jpg", f"photo{number}.png")]
-                if len(candidates) != 1:
-                    raise ValueError(f"expected exactly one photo{number}.jpg or photo{number}.png")
-                image = candidates[0]
+            for number, image in enumerate(photos, 1):
                 extension = image["name"].lower().rsplit(".", 1)[1]
                 filename = f"{identifier}-photo{number}.{extension}"
                 outputs[filename] = download(image["id"], key)
